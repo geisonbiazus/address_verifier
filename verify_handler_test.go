@@ -23,11 +23,7 @@ func TestVerifyHandler(t *testing.T) {
 
 		handler := addrvrf.NewVerifyHandler(in, out, verifier)
 
-		envelope := &addrvrf.Envelope{
-			Input: addrvrf.AddressInput{
-				City: "city",
-			},
-		}
+		envelope := createEnvelope("city")
 
 		return &fixture{
 			handler:       handler,
@@ -40,16 +36,44 @@ func TestVerifyHandler(t *testing.T) {
 	t.Run("Envelope goes in, is processed and goes out", func(t *testing.T) {
 		f := setup()
 
-		f.inputChannel <- f.envelope
+		envelope := createEnvelope("city")
+
+		f.inputChannel <- envelope
 		close(f.inputChannel)
 
 		f.handler.Handle()
 		close(f.outputChannel)
 
 		processedEnvelope := <-f.outputChannel
-		assert.Equal(t, f.envelope, processedEnvelope)
-		assert.Equal(t, strings.ToUpper(f.envelope.Input.City), processedEnvelope.Output.City)
+		assert.Equal(t, envelope, processedEnvelope)
+		assert.Equal(t, strings.ToUpper(envelope.Input.City), processedEnvelope.Output.City)
 	})
+
+	t.Run("Asynchronously process all that goes through the channel", func(t *testing.T) {
+		f := setup()
+
+		go func() {
+			f.handler.Handle()
+			close(f.outputChannel)
+		}()
+
+		f.inputChannel <- createEnvelope("city1")
+		f.inputChannel <- createEnvelope("city2")
+		f.inputChannel <- createEnvelope("city3")
+		close(f.inputChannel)
+
+		assert.Equal(t, "CITY1", (<-f.outputChannel).Output.City)
+		assert.Equal(t, "CITY2", (<-f.outputChannel).Output.City)
+		assert.Equal(t, "CITY3", (<-f.outputChannel).Output.City)
+	})
+}
+
+func createEnvelope(city string) *addrvrf.Envelope {
+	return &addrvrf.Envelope{
+		Input: addrvrf.AddressInput{
+			City: city,
+		},
+	}
 }
 
 type fakeVerifier struct{}
