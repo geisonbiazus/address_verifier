@@ -1,6 +1,7 @@
 package addrvrf_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/geisonbiazus/addrvrf"
@@ -8,18 +9,53 @@ import (
 )
 
 func TestVerifyHandler(t *testing.T) {
-	t.Run("Something goes in and something goes out", func(t *testing.T) {
-		in := make(chan string, 10)
-		out := make(chan string, 10)
-		handler := addrvrf.NewVerifyHandler(in, out)
+	type fixture struct {
+		handler       *addrvrf.VerifyHandler
+		envelope      *addrvrf.Envelope
+		inputChannel  chan *addrvrf.Envelope
+		outputChannel chan *addrvrf.Envelope
+	}
 
-		in <- "My String"
-		close(in)
+	setup := func() *fixture {
+		in := make(chan *addrvrf.Envelope, 10)
+		out := make(chan *addrvrf.Envelope, 10)
+		verifier := &fakeVerifier{}
 
-		handler.Handle()
+		handler := addrvrf.NewVerifyHandler(in, out, verifier)
 
-		close(out)
+		envelope := &addrvrf.Envelope{
+			Input: addrvrf.AddressInput{
+				City: "city",
+			},
+		}
 
-		assert.Equal(t, <-out, "My String")
+		return &fixture{
+			handler:       handler,
+			envelope:      envelope,
+			inputChannel:  in,
+			outputChannel: out,
+		}
+	}
+
+	t.Run("Envelope goes in, is processed and goes out", func(t *testing.T) {
+		f := setup()
+
+		f.inputChannel <- f.envelope
+		close(f.inputChannel)
+
+		f.handler.Handle()
+		close(f.outputChannel)
+
+		processedEnvelope := <-f.outputChannel
+		assert.Equal(t, f.envelope, processedEnvelope)
+		assert.Equal(t, strings.ToUpper(f.envelope.Input.City), processedEnvelope.Output.City)
 	})
+}
+
+type fakeVerifier struct{}
+
+func (v *fakeVerifier) Verify(i addrvrf.AddressInput) addrvrf.AddressOutput {
+	return addrvrf.AddressOutput{
+		City: strings.ToUpper(i.City),
+	}
 }
