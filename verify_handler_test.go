@@ -1,8 +1,9 @@
-package address_verifier
+package addrvrf_test
 
 import (
 	"testing"
 
+	"github.com/geisonbiazus/addrvrf"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -10,7 +11,7 @@ func TestVerifyHandler(t *testing.T) {
 	t.Run("Something goes in and something goes out", func(t *testing.T) {
 		in := make(chan string, 10)
 		out := make(chan string, 10)
-		handler := NewVerifyHandler(in, out)
+		handler := addrvrf.NewVerifyHandler(in, out)
 
 		in <- "My String"
 		close(in)

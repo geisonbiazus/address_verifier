@@ -1,4 +1,4 @@
-package address_verifier
+package addrvrf
 
 type VerifyHandler struct {
 	input  chan string
