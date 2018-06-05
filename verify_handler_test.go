@@ -1,11 +1,15 @@
-package address_verifier_test
+package address_verifier
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 func TestVerifyHandler(t *testing.T) {
 	t.Run("Something goes in and something goes out", func(t *testing.T) {
-		in := make(chan string, 1)
-		out := make(chan string, 1)
+		in := make(chan string, 10)
+		out := make(chan string, 10)
 		handler := NewVerifyHandler(in, out)
 
 		in <- "My String"
@@ -14,23 +18,7 @@ func TestVerifyHandler(t *testing.T) {
 		handler.Handle()
 
 		close(out)
-		result := <-out
 
-		if result != "My String" {
-			t.Errorf("\nGiven: %v\nWant:  %v", result, "My String")
-		}
+		assert.Equal(t, <-out, "My String")
 	})
-}
-
-type VerifyHandler struct {
-	input  chan string
-	output chan string
-}
-
-func NewVerifyHandler(input, output chan string) *VerifyHandler {
-	return &VerifyHandler{input: input, output: output}
-}
-
-func (h *VerifyHandler) Handle() {
-	h.output <- <-h.input
 }
