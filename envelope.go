@@ -13,5 +13,10 @@ type AddressInput struct {
 }
 
 type AddressOutput struct {
-	City string
+	DeliveryLine1 string
+	LastLine      string
+	Street        string
+	City          string
+	State         string
+	ZIPCode       string
 }

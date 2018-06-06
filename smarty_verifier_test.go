@@ -1,6 +1,8 @@
 package addrvrf_test
 
 import (
+	"bytes"
+	"io/ioutil"
 	"net/http"
 	"testing"
 
@@ -12,21 +14,12 @@ func TestSmartyVerifier(t *testing.T) {
 	type fixture struct {
 		client   *HTTPClientSpy
 		verifier *addrvrf.SmartyVerifier
+		input    addrvrf.AddressInput
 	}
 
 	setup := func() *fixture {
 		client := &HTTPClientSpy{}
 		verifier := addrvrf.NewSmartyVerifier(client)
-
-		return &fixture{
-			client:   client,
-			verifier: verifier,
-		}
-	}
-
-	t.Run("Request is sent properly", func(t *testing.T) {
-		f := setup()
-
 		input := addrvrf.AddressInput{
 			Street:  "street",
 			City:    "city",
@@ -34,7 +27,19 @@ func TestSmartyVerifier(t *testing.T) {
 			ZIPCode: "zipcode",
 		}
 
-		f.verifier.Verify(input)
+		client.Configure(http.StatusOK, SmartyAPISuccessResponse)
+
+		return &fixture{
+			client:   client,
+			verifier: verifier,
+			input:    input,
+		}
+	}
+
+	t.Run("Request is sent properly", func(t *testing.T) {
+		f := setup()
+
+		f.verifier.Verify(f.input)
 
 		assert.Equal(t, http.MethodGet, f.client.Request.Method)
 		assert.Equal(t, "https", f.client.Request.URL.Scheme)
@@ -45,13 +50,54 @@ func TestSmartyVerifier(t *testing.T) {
 		assert.Equal(t, "state", f.client.Request.URL.Query().Get("state"))
 		assert.Equal(t, "zipcode", f.client.Request.URL.Query().Get("zipcode"))
 	})
+
+	t.Run("Response is parsed and output is returned", func(t *testing.T) {
+		f := setup()
+		f.client.Configure(http.StatusOK, SmartyAPISuccessResponse)
+
+		output := f.verifier.Verify(f.input)
+
+		expected := addrvrf.AddressOutput{
+			DeliveryLine1: "delivery line 1",
+			LastLine:      "last line",
+			Street:        "street",
+			City:          "city",
+			State:         "state",
+			ZIPCode:       "zip code",
+		}
+
+		assert.Equal(t, expected, output)
+	})
 }
 
+const SmartyAPISuccessResponse = `
+[
+	{
+    "delivery_line_1": "delivery line 1",
+    "last_line": "last line",
+    "components": {
+      "street_name": "street",
+      "city_name": "city",
+      "state_abbreviation": "state",
+      "zipcode": "zip code"
+    }
+  }
+]
+`
+
 type HTTPClientSpy struct {
-	Request *http.Request
+	Request  *http.Request
+	Response *http.Response
 }
 
 func (c *HTTPClientSpy) Do(r *http.Request) (*http.Response, error) {
 	c.Request = r
-	return &http.Response{}, nil
+	return c.Response, nil
+}
+
+func (c *HTTPClientSpy) Configure(status int, body string) {
+	c.Response = &http.Response{
+		StatusCode: status,
+		Body:       ioutil.NopCloser(bytes.NewBufferString(body)),
+	}
 }
