@@ -58,12 +58,26 @@ func TestSmartyVerifier(t *testing.T) {
 		output := f.verifier.Verify(f.input)
 
 		expected := addrvrf.AddressOutput{
+			Status:        addrvrf.StatusSuccess,
 			DeliveryLine1: "delivery line 1",
 			LastLine:      "last line",
 			Street:        "street",
 			City:          "city",
 			State:         "state",
 			ZIPCode:       "zip code",
+		}
+
+		assert.Equal(t, expected, output)
+	})
+
+	t.Run("Invalid JSON is returned", func(t *testing.T) {
+		f := setup()
+		f.client.Configure(http.StatusOK, SmartyAPIInvalidJSONResponse)
+
+		output := f.verifier.Verify(f.input)
+
+		expected := addrvrf.AddressOutput{
+			Status: addrvrf.StatusInvalidResponse,
 		}
 
 		assert.Equal(t, expected, output)
@@ -84,6 +98,8 @@ const SmartyAPISuccessResponse = `
   }
 ]
 `
+
+const SmartyAPIInvalidJSONResponse = "Invalid JSON"
 
 type HTTPClientSpy struct {
 	Request  *http.Request

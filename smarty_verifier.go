@@ -6,6 +6,11 @@ import (
 	"net/url"
 )
 
+const (
+	StatusSuccess         = "SUCCESS"
+	StatusInvalidResponse = "INVALID_RESPONSE"
+)
+
 type HTTPClient interface {
 	Do(r *http.Request) (*http.Response, error)
 }
@@ -42,16 +47,28 @@ func (v *SmartyVerifier) buildURL(input AddressInput) string {
 }
 
 func (v *SmartyVerifier) buildOutput(r *http.Response) AddressOutput {
-	parsedBody := []smartyAPIResponse{}
-	json.NewDecoder(r.Body).Decode(&parsedBody)
+	parsedResponse := []smartyAPIResponse{}
 
+	if err := json.NewDecoder(r.Body).Decode(&parsedResponse); err != nil {
+		return v.buildInvalidOutput()
+	}
+
+	return v.buildSuccessOutput(parsedResponse[0])
+}
+
+func (v *SmartyVerifier) buildInvalidOutput() AddressOutput {
+	return AddressOutput{Status: StatusInvalidResponse}
+}
+
+func (v *SmartyVerifier) buildSuccessOutput(r smartyAPIResponse) AddressOutput {
 	return AddressOutput{
-		DeliveryLine1: parsedBody[0].DeliveryLine1,
-		LastLine:      parsedBody[0].LastLine,
-		Street:        parsedBody[0].Components.StreetName,
-		City:          parsedBody[0].Components.CityName,
-		State:         parsedBody[0].Components.StateAbbreviation,
-		ZIPCode:       parsedBody[0].Components.ZIPCode,
+		Status:        StatusSuccess,
+		DeliveryLine1: r.DeliveryLine1,
+		LastLine:      r.LastLine,
+		Street:        r.Components.StreetName,
+		City:          r.Components.CityName,
+		State:         r.Components.StateAbbreviation,
+		ZIPCode:       r.Components.ZIPCode,
 	}
 }
 
