@@ -28,8 +28,14 @@ func NewSmartyVerifier(c HTTPClient) *SmartyVerifier {
 }
 
 func (v SmartyVerifier) Verify(input AddressInput) AddressOutput {
+	response := v.performRequest(input)
+	parsedResponse := v.decodeJSON(response)
+	return v.buildOutput(parsedResponse)
+}
+
+func (v SmartyVerifier) performRequest(input AddressInput) *http.Response {
 	response, _ := v.HTTPClient.Do(v.buildRequest(input))
-	return v.decodeAndBuildOutput(response)
+	return response
 }
 
 func (v *SmartyVerifier) buildRequest(input AddressInput) *http.Request {
@@ -48,21 +54,20 @@ func (v *SmartyVerifier) buildURL(input AddressInput) string {
 	return url.String()
 }
 
-func (v *SmartyVerifier) decodeAndBuildOutput(r *http.Response) AddressOutput {
+func (v *SmartyVerifier) decodeJSON(r *http.Response) []smartyAPIResponse {
+	defer r.Body.Close()
 	parsedResponse := []smartyAPIResponse{}
+	json.NewDecoder(r.Body).Decode(&parsedResponse)
+	return parsedResponse
+}
 
-	if err := json.NewDecoder(r.Body).Decode(&parsedResponse); err != nil {
-		return v.buildInvalidOutput()
+func (v *SmartyVerifier) buildOutput(rr []smartyAPIResponse) AddressOutput {
+	if len(rr) == 0 {
+		return AddressOutput{Status: StatusInvalid}
 	}
 
-	return v.buildOutput(parsedResponse[0])
-}
+	r := rr[0]
 
-func (v *SmartyVerifier) buildInvalidOutput() AddressOutput {
-	return AddressOutput{Status: StatusInvalid}
-}
-
-func (v *SmartyVerifier) buildOutput(r smartyAPIResponse) AddressOutput {
 	return AddressOutput{
 		Status:        v.computeStatus(r),
 		DeliveryLine1: r.DeliveryLine1,

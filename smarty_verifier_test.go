@@ -2,8 +2,9 @@ package addrvrf_test
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 
@@ -70,6 +71,7 @@ func TestSmartyVerifier(t *testing.T) {
 		}
 
 		assert.Equal(t, expected, output)
+		assert.True(t, f.client.ReadCloser.Closed)
 	})
 
 	t.Run("Invalid JSON is returned", func(t *testing.T) {
@@ -140,8 +142,9 @@ func validateAndAssertStatus(t *testing.T, f *smartyVerifierFixture, response, s
 }
 
 type HTTPClientSpy struct {
-	Request  *http.Request
-	Response *http.Response
+	Request    *http.Request
+	Response   *http.Response
+	ReadCloser *ReadCloserSpy
 }
 
 func (c *HTTPClientSpy) Do(r *http.Request) (*http.Response, error) {
@@ -150,8 +153,30 @@ func (c *HTTPClientSpy) Do(r *http.Request) (*http.Response, error) {
 }
 
 func (c *HTTPClientSpy) Configure(status int, body string) {
+	c.ReadCloser = NewReadCloserSpy((bytes.NewBufferString(body)))
 	c.Response = &http.Response{
 		StatusCode: status,
-		Body:       ioutil.NopCloser(bytes.NewBufferString(body)),
+		Body:       c.ReadCloser,
 	}
+}
+
+type ReadCloserSpy struct {
+	Reader io.Reader
+	Closed bool
+}
+
+func NewReadCloserSpy(r io.Reader) *ReadCloserSpy {
+	return &ReadCloserSpy{Reader: r}
+}
+
+func (r *ReadCloserSpy) Close() error {
+	r.Closed = true
+	return nil
+}
+
+func (r *ReadCloserSpy) Read(p []byte) (int, error) {
+	if r.Closed {
+		return 0, errors.New("Already closed")
+	}
+	return r.Reader.Read(p)
 }
