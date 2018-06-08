@@ -2,6 +2,7 @@ package addrvrf_test
 
 import (
 	"bytes"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"testing"
@@ -10,14 +11,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSmartyVerifier(t *testing.T) {
-	type fixture struct {
-		client   *HTTPClientSpy
-		verifier *addrvrf.SmartyVerifier
-		input    addrvrf.AddressInput
-	}
+type smartyVerifierFixture struct {
+	client   *HTTPClientSpy
+	verifier *addrvrf.SmartyVerifier
+	input    addrvrf.AddressInput
+}
 
-	setup := func() *fixture {
+func TestSmartyVerifier(t *testing.T) {
+
+	setup := func() *smartyVerifierFixture {
 		client := &HTTPClientSpy{}
 		verifier := addrvrf.NewSmartyVerifier(client)
 		input := addrvrf.AddressInput{
@@ -29,7 +31,7 @@ func TestSmartyVerifier(t *testing.T) {
 
 		client.Configure(http.StatusOK, SmartyAPISuccessResponse)
 
-		return &fixture{
+		return &smartyVerifierFixture{
 			client:   client,
 			verifier: verifier,
 			input:    input,
@@ -58,7 +60,7 @@ func TestSmartyVerifier(t *testing.T) {
 		output := f.verifier.Verify(f.input)
 
 		expected := addrvrf.AddressOutput{
-			Status:        addrvrf.StatusSuccess,
+			Status:        addrvrf.StatusDeliverable,
 			DeliveryLine1: "delivery line 1",
 			LastLine:      "last line",
 			Street:        "street",
@@ -77,29 +79,65 @@ func TestSmartyVerifier(t *testing.T) {
 		output := f.verifier.Verify(f.input)
 
 		expected := addrvrf.AddressOutput{
-			Status: addrvrf.StatusInvalidResponse,
+			Status: addrvrf.StatusInvalid,
 		}
 
 		assert.Equal(t, expected, output)
 	})
+
+	t.Run("Status is computed correctly", func(t *testing.T) {
+		f := setup()
+
+		var (
+			deliverable      = buildSmartyAPIResponse("Y", "N", "Y")
+			missingSecondary = buildSmartyAPIResponse("D", "N", "Y")
+			droppedSecondary = buildSmartyAPIResponse("S", "N", "Y")
+			vacant           = buildSmartyAPIResponse("Y", "Y", "Y")
+			inactive         = buildSmartyAPIResponse("Y", "N", "?")
+			invalid          = buildSmartyAPIResponse("N", "?", "?")
+		)
+
+		validateAndAssertStatus(t, f, deliverable, addrvrf.StatusDeliverable)
+		validateAndAssertStatus(t, f, missingSecondary, addrvrf.StatusDeliverable)
+		validateAndAssertStatus(t, f, droppedSecondary, addrvrf.StatusDeliverable)
+		validateAndAssertStatus(t, f, vacant, addrvrf.StatusVacant)
+		validateAndAssertStatus(t, f, inactive, addrvrf.StatusInactive)
+		validateAndAssertStatus(t, f, invalid, addrvrf.StatusInvalid)
+	})
 }
 
-const SmartyAPISuccessResponse = `
-[
-	{
-    "delivery_line_1": "delivery line 1",
-    "last_line": "last line",
-    "components": {
-      "street_name": "street",
-      "city_name": "city",
-      "state_abbreviation": "state",
-      "zipcode": "zip code"
-    }
-  }
-]
-`
+var (
+	SmartyAPISuccessResponse     = buildSmartyAPIResponse("Y", "N", "Y")
+	SmartyAPIInvalidJSONResponse = "Invalid JSON"
+)
 
-const SmartyAPIInvalidJSONResponse = "Invalid JSON"
+func buildSmartyAPIResponse(match, vacant, active string) string {
+	return fmt.Sprintf(`
+	[
+		{
+	    "delivery_line_1": "delivery line 1",
+	    "last_line": "last line",
+	    "components": {
+	      "street_name": "street",
+	      "city_name": "city",
+	      "state_abbreviation": "state",
+	      "zipcode": "zip code"
+	    },
+			"analysis": {
+				"dpv_match_code": "%s",
+				"dpv_vacant": "%s",
+				"active": "%s"
+			}
+	  }
+	]
+	`, match, vacant, active)
+}
+
+func validateAndAssertStatus(t *testing.T, f *smartyVerifierFixture, response, status string) {
+	f.client.Configure(http.StatusOK, response)
+	output := f.verifier.Verify(f.input)
+	assert.Equal(t, status, output.Status)
+}
 
 type HTTPClientSpy struct {
 	Request  *http.Request
