@@ -11,13 +11,13 @@ import (
 
 func TestReadHandler(t *testing.T) {
 	type fixture struct {
-		buffer  *bytes.Buffer
+		buffer  *BufferCloserSpy
 		output  chan *addrvrf.Envelope
 		handler *addrvrf.ReadHandler
 	}
 
 	setup := func() *fixture {
-		buffer := bytes.NewBufferString("")
+		buffer := NewBufferCloserSpy(bytes.NewBufferString(""))
 		output := make(chan *addrvrf.Envelope, 10)
 		handler := addrvrf.NewReadHandler(buffer, output)
 
@@ -35,10 +35,12 @@ func TestReadHandler(t *testing.T) {
 
 		writeLine(f.buffer, "A1,B1,C1,D1")
 
-		f.handler.Handle()
+		err := f.handler.Handle()
 		close(f.output)
 
 		assertEnvelopeSent(t, addrvrf.InitialSequence, <-f.output)
+		assert.True(t, f.buffer.Closed)
+		assert.Nil(t, err)
 	})
 
 	t.Run("Read multiple lines and create Envelopes", func(t *testing.T) {
@@ -50,7 +52,7 @@ func TestReadHandler(t *testing.T) {
 		writeLine(f.buffer, "A4,B4,C4,D4")
 		writeLine(f.buffer, "A5,B5,C5,D5")
 
-		f.handler.Handle()
+		err := f.handler.Handle()
 		close(f.output)
 
 		assertEnvelopeSent(t, addrvrf.InitialSequence, <-f.output)
@@ -58,10 +60,21 @@ func TestReadHandler(t *testing.T) {
 		assertEnvelopeSent(t, addrvrf.InitialSequence+2, <-f.output)
 		assertEnvelopeSent(t, addrvrf.InitialSequence+3, <-f.output)
 		assertEnvelopeSent(t, addrvrf.InitialSequence+4, <-f.output)
+		assert.True(t, f.buffer.Closed)
+		assert.Nil(t, err)
+	})
+
+	t.Run("Malformed file", func(t *testing.T) {
+		f := setup()
+		writeLine(f.buffer, "A")
+
+		err := f.handler.Handle()
+
+		assert.NotNil(t, err)
 	})
 }
 
-func writeLine(buffer *bytes.Buffer, line string) {
+func writeLine(buffer *BufferCloserSpy, line string) {
 	buffer.WriteString(line + "\n")
 }
 

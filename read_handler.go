@@ -7,28 +7,37 @@ import (
 
 type ReadHandler struct {
 	reader   *csv.Reader
+	closer   io.Closer
 	output   chan *Envelope
 	sequence int
 }
 
-func NewReadHandler(reader io.Reader, output chan *Envelope) *ReadHandler {
+func NewReadHandler(readCloser io.ReadCloser, output chan *Envelope) *ReadHandler {
 	return &ReadHandler{
-		reader:   csv.NewReader(reader),
+		reader:   csv.NewReader(readCloser),
+		closer:   readCloser,
 		output:   output,
 		sequence: InitialSequence,
 	}
 }
 
-func (h *ReadHandler) Handle() {
+func (h *ReadHandler) Handle() error {
+	defer h.close()
+
 	h.skipHeader()
 
 	for {
 		record, err := h.reader.Read()
-		if err == io.EOF {
-			break
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
 		}
 		h.sendEnvelope(record)
 	}
+
+	return nil
 }
 
 func (h *ReadHandler) skipHeader() {
@@ -46,4 +55,8 @@ func (h *ReadHandler) sendEnvelope(record []string) {
 		},
 	}
 	h.sequence++
+}
+
+func (h *ReadHandler) close() {
+	h.closer.Close()
 }
