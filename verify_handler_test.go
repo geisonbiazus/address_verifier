@@ -42,7 +42,6 @@ func TestVerifyHandler(t *testing.T) {
 		close(f.inputChannel)
 
 		f.handler.Handle()
-		close(f.outputChannel)
 
 		processedEnvelope := <-f.outputChannel
 		assert.Equal(t, envelope, processedEnvelope)
@@ -54,7 +53,6 @@ func TestVerifyHandler(t *testing.T) {
 
 		go func() {
 			f.handler.Handle()
-			close(f.outputChannel)
 		}()
 
 		f.inputChannel <- createEnvelope("city1")
@@ -65,6 +63,17 @@ func TestVerifyHandler(t *testing.T) {
 		assert.Equal(t, "CITY1", (<-f.outputChannel).Output.City)
 		assert.Equal(t, "CITY2", (<-f.outputChannel).Output.City)
 		assert.Equal(t, "CITY3", (<-f.outputChannel).Output.City)
+	})
+
+	t.Run("Output channel is closed when there is no more input", func(t *testing.T) {
+		f := setup()
+		close(f.inputChannel)
+
+		f.handler.Handle()
+
+		_, open := <-f.outputChannel
+
+		assert.False(t, open)
 	})
 }
 

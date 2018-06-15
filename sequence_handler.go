@@ -17,6 +17,8 @@ func NewSequenceHandler(input, output chan *Envelope) *SequenceHandler {
 }
 
 func (h *SequenceHandler) Handle() {
+	defer h.close()
+
 	for e := range h.input {
 		h.buffer[e.Sequence] = e
 		h.sendBufferedEnvelopesInOrder()
@@ -33,4 +35,8 @@ func (h *SequenceHandler) sendBufferedEnvelopesInOrder() {
 		h.output <- e
 		delete(h.buffer, e.Sequence)
 	}
+}
+
+func (h *SequenceHandler) close() {
+	close(h.output)
 }

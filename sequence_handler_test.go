@@ -34,7 +34,6 @@ func TestSequenceHandler(t *testing.T) {
 		close(f.input)
 
 		f.handler.Handle()
-		close(f.output)
 
 		assert.Equal(t, envelope, <-f.output)
 	})
@@ -51,7 +50,6 @@ func TestSequenceHandler(t *testing.T) {
 		close(f.input)
 
 		f.handler.Handle()
-		close(f.output)
 
 		assert.Equal(t, addrvrf.InitialSequence+0, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+1, (<-f.output).Sequence)
@@ -73,7 +71,6 @@ func TestSequenceHandler(t *testing.T) {
 		close(f.input)
 
 		f.handler.Handle()
-		close(f.output)
 
 		assert.Equal(t, addrvrf.InitialSequence+0, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+1, (<-f.output).Sequence)
@@ -81,6 +78,17 @@ func TestSequenceHandler(t *testing.T) {
 		assert.Equal(t, addrvrf.InitialSequence+3, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+4, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+5, (<-f.output).Sequence)
+	})
+
+	t.Run("Output channel is closed when there is no more input", func(t *testing.T) {
+		f := setup()
+		close(f.input)
+
+		f.handler.Handle()
+
+		_, open := <-f.output
+
+		assert.False(t, open)
 	})
 }
 

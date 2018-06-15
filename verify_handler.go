@@ -19,8 +19,14 @@ func NewVerifyHandler(input, output chan *Envelope, verifier Verifier) *VerifyHa
 }
 
 func (h *VerifyHandler) Handle() {
+	defer h.close()
+
 	for envelope := range h.input {
 		envelope.Output = h.verifier.Verify(envelope.Input)
 		h.output <- envelope
 	}
+}
+
+func (h *VerifyHandler) close() {
+	close(h.output)
 }

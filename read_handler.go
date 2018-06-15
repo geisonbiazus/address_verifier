@@ -59,4 +59,5 @@ func (h *ReadHandler) sendEnvelope(record []string) {
 
 func (h *ReadHandler) close() {
 	h.closer.Close()
+	close(h.output)
 }

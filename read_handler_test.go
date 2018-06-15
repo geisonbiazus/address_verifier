@@ -36,7 +36,6 @@ func TestReadHandler(t *testing.T) {
 		writeLine(f.buffer, "A1,B1,C1,D1")
 
 		err := f.handler.Handle()
-		close(f.output)
 
 		assertEnvelopeSent(t, addrvrf.InitialSequence, <-f.output)
 		assert.True(t, f.buffer.Closed)
@@ -53,7 +52,6 @@ func TestReadHandler(t *testing.T) {
 		writeLine(f.buffer, "A5,B5,C5,D5")
 
 		err := f.handler.Handle()
-		close(f.output)
 
 		assertEnvelopeSent(t, addrvrf.InitialSequence, <-f.output)
 		assertEnvelopeSent(t, addrvrf.InitialSequence+1, <-f.output)
@@ -71,6 +69,18 @@ func TestReadHandler(t *testing.T) {
 		err := f.handler.Handle()
 
 		assert.NotNil(t, err)
+	})
+
+	t.Run("Output channel is closed in the end", func(t *testing.T) {
+		f := setup()
+		writeLine(f.buffer, "A1,B1,C1,D1")
+
+		f.handler.Handle()
+
+		<-f.output
+		_, open := <-f.output
+
+		assert.False(t, open)
 	})
 }
 
