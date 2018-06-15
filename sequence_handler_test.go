@@ -29,7 +29,7 @@ func TestSequenceHandler(t *testing.T) {
 	t.Run("An Envelope goes in and it goes out", func(t *testing.T) {
 		f := setup()
 
-		envelope := newEnvelopeWithSequence(0)
+		envelope := newEnvelopeWithSequence(addrvrf.InitialSequence)
 		f.input <- envelope
 		close(f.input)
 
@@ -42,45 +42,45 @@ func TestSequenceHandler(t *testing.T) {
 	t.Run("Many sorted Envelopes goes through the Handler", func(t *testing.T) {
 		f := setup()
 
-		f.input <- newEnvelopeWithSequence(0)
-		f.input <- newEnvelopeWithSequence(1)
-		f.input <- newEnvelopeWithSequence(2)
-		f.input <- newEnvelopeWithSequence(3)
-		f.input <- newEnvelopeWithSequence(4)
-		f.input <- newEnvelopeWithSequence(5)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 0)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 1)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 2)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 3)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 4)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 5)
 		close(f.input)
 
 		f.handler.Handle()
 		close(f.output)
 
-		assert.Equal(t, 0, (<-f.output).Sequence)
-		assert.Equal(t, 1, (<-f.output).Sequence)
-		assert.Equal(t, 2, (<-f.output).Sequence)
-		assert.Equal(t, 3, (<-f.output).Sequence)
-		assert.Equal(t, 4, (<-f.output).Sequence)
-		assert.Equal(t, 5, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+0, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+1, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+2, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+3, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+4, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+5, (<-f.output).Sequence)
 	})
 
 	t.Run("Many unordered Envelopes goes through the Handler", func(t *testing.T) {
 		f := setup()
 
-		f.input <- newEnvelopeWithSequence(2)
-		f.input <- newEnvelopeWithSequence(5)
-		f.input <- newEnvelopeWithSequence(4)
-		f.input <- newEnvelopeWithSequence(0)
-		f.input <- newEnvelopeWithSequence(1)
-		f.input <- newEnvelopeWithSequence(3)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 2)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 5)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 4)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 0)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 1)
+		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 3)
 		close(f.input)
 
 		f.handler.Handle()
 		close(f.output)
 
-		assert.Equal(t, 0, (<-f.output).Sequence)
-		assert.Equal(t, 1, (<-f.output).Sequence)
-		assert.Equal(t, 2, (<-f.output).Sequence)
-		assert.Equal(t, 3, (<-f.output).Sequence)
-		assert.Equal(t, 4, (<-f.output).Sequence)
-		assert.Equal(t, 5, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+0, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+1, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+2, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+3, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+4, (<-f.output).Sequence)
+		assert.Equal(t, addrvrf.InitialSequence+5, (<-f.output).Sequence)
 	})
 }
 

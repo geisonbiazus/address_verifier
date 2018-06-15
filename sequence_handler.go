@@ -11,7 +11,7 @@ func NewSequenceHandler(input, output chan *Envelope) *SequenceHandler {
 	return &SequenceHandler{
 		input:      input,
 		output:     output,
-		currentSeq: 0,
+		currentSeq: InitialSequence,
 		buffer:     make(map[int]*Envelope),
 	}
 }

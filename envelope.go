@@ -1,5 +1,7 @@
 package addrvrf
 
+const InitialSequence = 1
+
 type Envelope struct {
 	Sequence int
 	Input    AddressInput

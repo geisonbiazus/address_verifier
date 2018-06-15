@@ -6,21 +6,38 @@ import (
 )
 
 type ReadHandler struct {
-	reader *csv.Reader
-	output chan *Envelope
+	reader   *csv.Reader
+	output   chan *Envelope
+	sequence int
 }
 
 func NewReadHandler(reader io.Reader, output chan *Envelope) *ReadHandler {
 	return &ReadHandler{
-		reader: csv.NewReader(reader),
-		output: output,
+		reader:   csv.NewReader(reader),
+		output:   output,
+		sequence: InitialSequence,
 	}
 }
 
 func (h *ReadHandler) Handle() {
-	record, _ := h.reader.Read()
+	h.skipHeader()
+
+	for {
+		record, err := h.reader.Read()
+		if err == io.EOF {
+			break
+		}
+		h.sendEnvelope(record)
+	}
+}
+
+func (h *ReadHandler) skipHeader() {
+	h.reader.Read()
+}
+
+func (h *ReadHandler) sendEnvelope(record []string) {
 	h.output <- &Envelope{
-		Sequence: 0,
+		Sequence: h.sequence,
 		Input: AddressInput{
 			Street:  record[0],
 			City:    record[1],
@@ -28,4 +45,5 @@ func (h *ReadHandler) Handle() {
 			ZIPCode: record[3],
 		},
 	}
+	h.sequence++
 }
