@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/geisonbiazus/addrvrf"
-	"github.com/stretchr/testify/assert"
+	"github.com/geisonbiazus/addrvrf/assert"
 )
 
 type smartyVerifierFixture struct {

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/geisonbiazus/addrvrf"
-	"github.com/stretchr/testify/assert"
+	"github.com/geisonbiazus/addrvrf/assert"
 )
 
 func TestReadHandler(t *testing.T) {
@@ -100,5 +100,5 @@ func assertEnvelopeSent(t *testing.T, seq int, actual *addrvrf.Envelope) {
 		},
 	}
 
-	assert.Equal(t, expected, actual)
+	assert.DeepEqual(t, expected, actual)
 }
