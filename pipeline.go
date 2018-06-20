@@ -24,8 +24,11 @@ func NewPipeline(input io.ReadCloser, output io.WriteCloser, client HTTPClient, 
 	}
 }
 
-func (p *Pipeline) Process() {
-	go p.readHandler.Handle()
+func (p *Pipeline) Process() error {
+	err := p.readHandler.Handle()
+	if err != nil {
+		return err
+	}
 
 	for i := 0; i < p.workers; i++ {
 		go p.verifyHandler.Handle()
@@ -33,4 +36,5 @@ func (p *Pipeline) Process() {
 
 	go p.sequenceHandler.Handle()
 	p.writeHandler.Handle()
+	return nil
 }
