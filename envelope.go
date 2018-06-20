@@ -4,6 +4,7 @@ const InitialSequence = 1
 
 type Envelope struct {
 	Sequence int
+	EOF      bool
 	Input    AddressInput
 	Output   AddressOutput
 }

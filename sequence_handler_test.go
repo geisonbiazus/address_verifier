@@ -47,7 +47,7 @@ func TestSequenceHandler(t *testing.T) {
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 3)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 4)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 5)
-		close(f.input)
+		f.input <- newEOFEnvelope(addrvrf.InitialSequence + 6)
 
 		f.handler.Handle()
 
@@ -57,6 +57,7 @@ func TestSequenceHandler(t *testing.T) {
 		assert.Equal(t, addrvrf.InitialSequence+3, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+4, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+5, (<-f.output).Sequence)
+		assertClosed(t, f.output)
 	})
 
 	t.Run("Many unordered Envelopes goes through the Handler", func(t *testing.T) {
@@ -65,10 +66,10 @@ func TestSequenceHandler(t *testing.T) {
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 2)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 5)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 4)
+		f.input <- newEOFEnvelope(addrvrf.InitialSequence + 6)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 0)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 1)
 		f.input <- newEnvelopeWithSequence(addrvrf.InitialSequence + 3)
-		close(f.input)
 
 		f.handler.Handle()
 
@@ -78,17 +79,17 @@ func TestSequenceHandler(t *testing.T) {
 		assert.Equal(t, addrvrf.InitialSequence+3, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+4, (<-f.output).Sequence)
 		assert.Equal(t, addrvrf.InitialSequence+5, (<-f.output).Sequence)
+		assertClosed(t, f.output)
 	})
 
-	t.Run("Output channel is closed when there is no more input", func(t *testing.T) {
+	t.Run("Output and Input channels are closed when EOF is sent", func(t *testing.T) {
 		f := setup()
-		close(f.input)
 
+		f.input <- newEOFEnvelope(addrvrf.InitialSequence)
 		f.handler.Handle()
 
-		_, open := <-f.output
-
-		assert.False(t, open)
+		assertClosed(t, f.input)
+		assertClosed(t, f.output)
 	})
 }
 
@@ -96,4 +97,18 @@ func newEnvelopeWithSequence(seq int) *addrvrf.Envelope {
 	return &addrvrf.Envelope{
 		Sequence: seq,
 	}
+}
+
+func newEOFEnvelope(seq int) *addrvrf.Envelope {
+	return &addrvrf.Envelope{
+		Sequence: seq,
+		EOF:      true,
+	}
+}
+
+func assertClosed(t *testing.T, channel chan *addrvrf.Envelope) {
+	t.Helper()
+	_, open := <-channel
+
+	assert.False(t, open)
 }

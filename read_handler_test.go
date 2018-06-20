@@ -38,6 +38,7 @@ func TestReadHandler(t *testing.T) {
 		err := f.handler.Handle()
 
 		assertEnvelopeSent(t, addrvrf.InitialSequence, <-f.output)
+		assertEOF(t, addrvrf.InitialSequence+1, <-f.output)
 		assert.True(t, f.buffer.Closed)
 		assert.Nil(t, err)
 	})
@@ -58,6 +59,7 @@ func TestReadHandler(t *testing.T) {
 		assertEnvelopeSent(t, addrvrf.InitialSequence+2, <-f.output)
 		assertEnvelopeSent(t, addrvrf.InitialSequence+3, <-f.output)
 		assertEnvelopeSent(t, addrvrf.InitialSequence+4, <-f.output)
+		assertEOF(t, addrvrf.InitialSequence+5, <-f.output)
 		assert.True(t, f.buffer.Closed)
 		assert.Nil(t, err)
 	})
@@ -76,8 +78,9 @@ func TestReadHandler(t *testing.T) {
 		writeLine(f.buffer, "A1,B1,C1,D1")
 
 		f.handler.Handle()
-
 		<-f.output
+		<-f.output
+
 		_, open := <-f.output
 
 		assert.False(t, open)
@@ -89,6 +92,7 @@ func writeLine(buffer *BufferCloserSpy, line string) {
 }
 
 func assertEnvelopeSent(t *testing.T, seq int, actual *addrvrf.Envelope) {
+	t.Helper()
 	num := strconv.Itoa(seq)
 	expected := &addrvrf.Envelope{
 		Sequence: seq,
@@ -101,4 +105,10 @@ func assertEnvelopeSent(t *testing.T, seq int, actual *addrvrf.Envelope) {
 	}
 
 	assert.DeepEqual(t, expected, actual)
+}
+
+func assertEOF(t *testing.T, seq int, actual *addrvrf.Envelope) {
+	t.Helper()
+	assert.Equal(t, seq, actual.Sequence)
+	assert.True(t, actual.EOF)
 }

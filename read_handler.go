@@ -36,6 +36,7 @@ func (h *ReadHandler) Handle() error {
 		}
 		h.sendEnvelope(record)
 	}
+	h.sendEOF()
 
 	return nil
 }
@@ -55,6 +56,13 @@ func (h *ReadHandler) sendEnvelope(record []string) {
 		},
 	}
 	h.sequence++
+}
+
+func (h *ReadHandler) sendEOF() {
+	h.output <- &Envelope{
+		Sequence: h.sequence,
+		EOF:      true,
+	}
 }
 
 func (h *ReadHandler) close() {

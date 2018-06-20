@@ -10,10 +10,10 @@ import (
 
 func TestVerifyHandler(t *testing.T) {
 	type fixture struct {
-		handler       *addrvrf.VerifyHandler
-		envelope      *addrvrf.Envelope
-		inputChannel  chan *addrvrf.Envelope
-		outputChannel chan *addrvrf.Envelope
+		handler  *addrvrf.VerifyHandler
+		verifier *fakeVerifier
+		input    chan *addrvrf.Envelope
+		output   chan *addrvrf.Envelope
 	}
 
 	setup := func() *fixture {
@@ -23,13 +23,11 @@ func TestVerifyHandler(t *testing.T) {
 
 		handler := addrvrf.NewVerifyHandler(in, out, verifier)
 
-		envelope := createEnvelope("city")
-
 		return &fixture{
-			handler:       handler,
-			envelope:      envelope,
-			inputChannel:  in,
-			outputChannel: out,
+			handler:  handler,
+			verifier: verifier,
+			input:    in,
+			output:   out,
 		}
 	}
 
@@ -38,12 +36,13 @@ func TestVerifyHandler(t *testing.T) {
 
 		envelope := createEnvelope("city")
 
-		f.inputChannel <- envelope
-		close(f.inputChannel)
+		f.input <- envelope
+		close(f.input)
 
 		f.handler.Handle()
+		close(f.output)
 
-		processedEnvelope := <-f.outputChannel
+		processedEnvelope := <-f.output
 		assert.Equal(t, envelope, processedEnvelope)
 		assert.Equal(t, strings.ToUpper(envelope.Input.City), processedEnvelope.Output.City)
 	})
@@ -55,25 +54,28 @@ func TestVerifyHandler(t *testing.T) {
 			f.handler.Handle()
 		}()
 
-		f.inputChannel <- createEnvelope("city1")
-		f.inputChannel <- createEnvelope("city2")
-		f.inputChannel <- createEnvelope("city3")
-		close(f.inputChannel)
+		f.input <- createEnvelope("city1")
+		f.input <- createEnvelope("city2")
+		f.input <- createEnvelope("city3")
+		close(f.input)
 
-		assert.Equal(t, "CITY1", (<-f.outputChannel).Output.City)
-		assert.Equal(t, "CITY2", (<-f.outputChannel).Output.City)
-		assert.Equal(t, "CITY3", (<-f.outputChannel).Output.City)
+		assert.Equal(t, "CITY1", (<-f.output).Output.City)
+		assert.Equal(t, "CITY2", (<-f.output).Output.City)
+		assert.Equal(t, "CITY3", (<-f.output).Output.City)
+		close(f.output)
 	})
 
-	t.Run("Output channel is closed when there is no more input", func(t *testing.T) {
+	t.Run("EOF is ignored and passed to output directly", func(t *testing.T) {
 		f := setup()
-		close(f.inputChannel)
+
+		f.input <- &addrvrf.Envelope{EOF: true}
+		close(f.input)
 
 		f.handler.Handle()
+		close(f.output)
 
-		_, open := <-f.outputChannel
-
-		assert.False(t, open)
+		assert.DeepEqual(t, &addrvrf.Envelope{EOF: true}, <-f.output)
+		assert.False(t, f.verifier.called)
 	})
 }
 
@@ -85,9 +87,12 @@ func createEnvelope(city string) *addrvrf.Envelope {
 	}
 }
 
-type fakeVerifier struct{}
+type fakeVerifier struct {
+	called bool
+}
 
 func (v *fakeVerifier) Verify(i addrvrf.AddressInput) addrvrf.AddressOutput {
+	v.called = true
 	return addrvrf.AddressOutput{
 		City: strings.ToUpper(i.City),
 	}
