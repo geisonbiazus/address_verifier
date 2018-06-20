@@ -3,29 +3,34 @@ package addrvrf
 import "io"
 
 type Pipeline struct {
-	input   io.ReadCloser
-	output  io.WriteCloser
-	client  HTTPClient
-	workers int
+	readHandler     *ReadHandler
+	verifyHandler   *VerifyHandler
+	sequenceHandler *SequenceHandler
+	writeHandler    *WriteHandler
+	workers         int
 }
 
 func NewPipeline(input io.ReadCloser, output io.WriteCloser, client HTTPClient, workers int) *Pipeline {
-	return &Pipeline{
-		input:   input,
-		output:  output,
-		client:  client,
-		workers: workers,
-	}
-}
-
-func (p *Pipeline) Process() {
 	verifyInput := make(chan *Envelope, 1024)
 	sequenceInput := make(chan *Envelope, 1024)
 	writeInput := make(chan *Envelope, 1024)
 
-	go NewReadHandler(p.input, verifyInput).Handle()
-	go NewVerifyHandler(verifyInput, sequenceInput, NewSmartyVerifier(p.client)).Handle()
-	go NewSequenceHandler(sequenceInput, writeInput).Handle()
+	return &Pipeline{
+		readHandler:     NewReadHandler(input, verifyInput),
+		verifyHandler:   NewVerifyHandler(verifyInput, sequenceInput, NewSmartyVerifier(client)),
+		sequenceHandler: NewSequenceHandler(sequenceInput, writeInput),
+		writeHandler:    NewWriteHandler(writeInput, output),
+		workers:         workers,
+	}
+}
 
-	NewWriteHandler(writeInput, p.output).Handle()
+func (p *Pipeline) Process() {
+	go p.readHandler.Handle()
+
+	for i := 0; i < p.workers; i++ {
+		go p.verifyHandler.Handle()
+	}
+
+	go p.sequenceHandler.Handle()
+	p.writeHandler.Handle()
 }
