@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"os"
 
@@ -10,5 +11,8 @@ import (
 func main() {
 	client := addrvrf.NewAuthorizerClient(http.DefaultClient, "AUTH_ID", "AUTH_TOKEN")
 	pipeline := addrvrf.NewPipeline(os.Stdin, os.Stdout, client, 8)
-	pipeline.Process()
+	err := pipeline.Process()
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 }
