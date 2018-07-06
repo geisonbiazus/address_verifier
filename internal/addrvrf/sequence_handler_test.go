@@ -3,8 +3,8 @@ package addrvrf_test
 import (
 	"testing"
 
-	"github.com/geisonbiazus/addrvrf"
-	"github.com/geisonbiazus/addrvrf/assert"
+	"github.com/geisonbiazus/addrvrf/internal/addrvrf"
+	"github.com/geisonbiazus/addrvrf/internal/assert"
 )
 
 func TestSequenceHandler(t *testing.T) {

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/geisonbiazus/addrvrf"
+	"github.com/geisonbiazus/addrvrf/internal/addrvrf"
 )
 
 func main() {

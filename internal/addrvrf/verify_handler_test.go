@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/geisonbiazus/addrvrf"
-	"github.com/geisonbiazus/addrvrf/assert"
+	"github.com/geisonbiazus/addrvrf/internal/addrvrf"
+	"github.com/geisonbiazus/addrvrf/internal/assert"
 )
 
 func TestVerifyHandler(t *testing.T) {
